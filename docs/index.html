@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LBA Serie A – Statistiche Giocatori</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#08090c;--surface:#111318;--card:#161b24;--border:#1e2535;
+  --accent:#e8a923;--text:#dde4f0;--muted:#6a7899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh}
+
+.hero{
+  min-height:38vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#08090c 0%,#111827 55%,#1c0e00 100%);
+  border-bottom:2px solid var(--accent);
+  text-align:center;padding:3rem 1rem 2.5rem;
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 60% at 50% 100%,rgba(232,169,35,.12),transparent);
+}
+.hero .ball{font-size:3.5rem;margin-bottom:.5rem;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.hero h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(2.5rem,8vw,5rem);font-weight:900;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+  line-height:.95;
+}
+.hero h1 span{color:var(--text)}
+.hero p{color:var(--muted);font-size:.95rem;margin-top:.8rem;letter-spacing:.08em;text-transform:uppercase}
+
+.cta{
+  display:inline-flex;align-items:center;gap:.5rem;
+  margin-top:1.5rem;padding:.7rem 1.6rem;
+  background:var(--accent);color:#000;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:1rem;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:6px;text-decoration:none;transition:opacity .2s;
+}
+.cta:hover{opacity:.85}
+
+main{max-width:800px;margin:0 auto;padding:2.5rem 1rem}
+h2{
+  font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+  margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;
+}
+
+.rounds-list{display:flex;flex-direction:column;gap:.7rem}
+.round-card{
+  display:flex;align-items:center;gap:1rem;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:1rem 1.2rem;text-decoration:none;color:var(--text);
+  transition:border-color .2s,background .2s;
+}
+.round-card:hover{border-color:var(--accent);background:#1b2030}
+.round-number{
+  font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;
+  font-weight:700;color:var(--accent);flex:1;
+}
+.round-meta{font-size:.8rem;color:var(--muted)}
+.arrow{color:var(--muted);font-size:1.1rem;margin-left:auto}
+.round-card:hover .arrow{color:var(--accent)}
+
+.empty{color:var(--muted);text-align:center;padding:3rem;line-height:1.8}
+
+.how-to{
+  margin-top:2.5rem;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:1.5rem;
+}
+.how-to h3{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:1rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--accent);margin-bottom:1rem;
+}
+.steps{display:flex;flex-direction:column;gap:.7rem}
+.step{display:flex;gap:.8rem;align-items:flex-start;font-size:.88rem}
+.step-num{
+  min-width:1.6rem;height:1.6rem;border-radius:50%;
+  background:var(--accent);color:#000;
+  font-weight:700;font-size:.8rem;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.step p{color:var(--muted);line-height:1.5}
+.step strong{color:var(--text)}
+code{background:#1e2535;padding:.1rem .4rem;border-radius:4px;font-size:.82rem;color:#a8c4f0}
+
+footer{
+  text-align:center;color:var(--muted);font-size:.75rem;
+  padding:1.5rem;border-top:1px solid var(--border);margin-top:1rem;
+  letter-spacing:.05em;
+}
+a.ext{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="ball">🏀</div>
+  <h1>LBA <span>Serie A</span></h1>
+  <p>Statistiche giocatori · minuti · valutazione · boxscore completo</p>
+  <a href="https://github.com" class="cta" target="_blank">▶ Lancia nuovo scraping</a>
+</div>
+
+<main>
+  <h2>Giornate disponibili</h2>
+  <div class="rounds-list">
+    <p class="empty">Nessuna giornata ancora scaricata.<br>Avvia il workflow su GitHub Actions.</p>
+  </div>
+
+  <div class="how-to">
+    <h3>Come aggiungere una giornata</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p>Vai su <strong>GitHub → Actions → 🏀 Scrape LBA Giornata</strong></p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p>Clicca <strong>Run workflow</strong> e inserisci il numero di giornata (es. <code>25</code>)</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p>Attendi ~3 minuti: l'Action scrape il sito, genera l'HTML e lo pubblica qui automaticamente</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Dati estratti da <a href="https://www.legabasket.it" class="ext" target="_blank">legabasket.it</a>
+  &nbsp;·&nbsp; Ultimo aggiornamento: 08/04/2026 07:58
+</footer>
+</body>
+</html>
