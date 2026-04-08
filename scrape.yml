@@ -1,0 +1,69 @@
+name: 🏀 Scrape LBA Giornata
+
+on:
+  workflow_dispatch:
+    inputs:
+      giornata:
+        description: "Numero giornata (es. 25)"
+        required: true
+        type: string
+      stagione:
+        description: "Stagione (es. 2024-2025)"
+        required: false
+        default: "2024-2025"
+        type: string
+      force_discovery:
+        description: "Forza re-discovery endpoint anche se validi"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install Python deps
+        run: pip install requests beautifulsoup4 playwright
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run scraper (con auto-discovery endpoint)
+        working-directory: scraper
+        env:
+          FORCE: ${{ github.event.inputs.force_discovery }}
+        run: |
+          FORCE_FLAG=""
+          [ "$FORCE" = "true" ] && FORCE_FLAG="--force-discovery"
+          python lba_scraper.py \
+            --giornata "${{ github.event.inputs.giornata }}" \
+            --stagione "${{ github.event.inputs.stagione }}" \
+            --output   "../docs/giornata_${{ github.event.inputs.giornata }}.html" \
+            $FORCE_FLAG
+
+      - name: Rebuild index
+        run: python scraper/build_index.py
+
+      - name: Commit risultati + eventuale config aggiornata
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/ scraper/api_config.json
+          git diff --cached --quiet && echo "Nulla da committare" || \
+            git commit -m "🏀 Giornata ${{ github.event.inputs.giornata }} · ${{ github.event.inputs.stagione }}"
+          git push

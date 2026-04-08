@@ -1,0 +1,93 @@
+name: 🔧 Valida & Aggiorna Endpoint
+
+on:
+  schedule:
+    # Ogni domenica alle 06:00 UTC (prima della ripresa dei campionati)
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Forza re-discovery completa"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write   # per aprire issue se discovery fallisce
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install requests beautifulsoup4 playwright
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Valida endpoint
+        id: validate
+        working-directory: scraper
+        env:
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          FORCE_FLAG=""
+          [ "$FORCE" = "true" ] && FORCE_FLAG="--force"
+          python endpoint_discovery.py $FORCE_FLAG 2>&1 | tee /tmp/discovery_log.txt
+          # Controlla se gli endpoint sono stati trovati
+          python -c "
+          import json, sys
+          cfg = json.load(open('api_config.json'))
+          eps = cfg.get('endpoints', {})
+          ok  = all(eps.get(k, {}).get('status') == 'ok'
+                    for k in ['games_by_round', 'game_boxscore'])
+          print('ENDPOINTS_OK=' + str(ok).lower())
+          sys.exit(0 if ok else 1)
+          " | tee -a $GITHUB_OUTPUT || echo "ENDPOINTS_OK=false" >> $GITHUB_OUTPUT
+
+      - name: Commit config aggiornata
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scraper/api_config.json
+          git diff --cached --quiet && echo "Config invariata" || \
+            git commit -m "🔧 Auto-update endpoint API $(date -u +%Y-%m-%d)" && git push
+
+      - name: Apri issue se discovery fallisce
+        if: steps.validate.outputs.ENDPOINTS_OK == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('/tmp/discovery_log.txt', 'utf8').slice(-3000);
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              labels: ['endpoint-broken'],
+              state: 'open'
+            });
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: '⚠️ Endpoint LBA non trovati – discovery fallita',
+                body: `## Endpoint API non rilevati automaticamente\n\n`+
+                      `La discovery automatica del ${new Date().toLocaleDateString('it-IT')} `+
+                      `non ha trovato endpoint validi per legabasket.it.\n\n`+
+                      `### Cosa fare\n`+
+                      `1. Apri DevTools (F12) su Chrome\n`+
+                      `2. Vai su una partita: https://www.legabasket.it/game/25212\n`+
+                      `3. Tab **Network** → filtro **Fetch/XHR**\n`+
+                      `4. Ricarica la pagina e copia gli URL delle chiamate JSON\n`+
+                      `5. Aggiorna \`scraper/api_config.json\` manualmente\n\n`+
+                      `### Log discovery\n\`\`\`\n${log}\n\`\`\``,
+                labels: ['endpoint-broken', 'bug']
+              });
+            }
