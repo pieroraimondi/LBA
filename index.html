@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LBA – Statistiche Giocatori</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #08090c;
+  --surf: #111318;
+  --card: #161b24;
+  --brd: #1e2535;
+  --acc: #e8a923;
+  --acc2: #f97316;
+  --txt: #dde4f0;
+  --mut: #6a7899;
+  --grn: #22c980;
+  --red: #f05050;
+  --blu: #5ba4f5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--txt); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+/* ── HEADER ── */
+.hero {
+  background: linear-gradient(160deg, #08090c 0%, #111827 55%, #1c0e00 100%);
+  border-bottom: 2px solid var(--acc);
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(232,169,35,.13), transparent);
+  pointer-events: none;
+}
+.hero h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  font-weight: 900; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--acc); line-height: .95;
+}
+.hero h1 span { color: var(--txt); }
+.hero p { color: var(--mut); font-size: .85rem; margin-top: .5rem; letter-spacing: .08em; text-transform: uppercase; }
+
+/* ── CONTROLS ── */
+.controls {
+  max-width: 640px; margin: 2rem auto; padding: 0 1rem;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--mut); }
+select, input[type=number] {
+  background: var(--card); border: 1px solid var(--brd); border-radius: 6px;
+  color: var(--txt); font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem; font-weight: 600; padding: .45rem .7rem;
+  outline: none; transition: border-color .2s;
+}
+select:focus, input[type=number]:focus { border-color: var(--acc); }
+input[type=number] { width: 90px; }
+select { width: 150px; }
+.btn {
+  margin-top: 18px;
+  background: var(--acc); color: #000;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800; font-size: 1.05rem; letter-spacing: .06em;
+  text-transform: uppercase; padding: .5rem 1.4rem;
+  transition: opacity .2s; white-space: nowrap;
+}
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .4; cursor: default; }
+
+/* ── STATUS ── */
+.status-bar {
+  max-width: 960px; margin: 0 auto 1rem; padding: 0 1rem;
+  font-size: .82rem; color: var(--mut); min-height: 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.status-bar .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--mut); flex-shrink: 0;
+}
+.status-bar.loading .dot { background: var(--acc); animation: pulse 1s ease-in-out infinite; }
+.status-bar.ok     .dot { background: var(--grn); }
+.status-bar.err    .dot { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── DEBUG LOG ── */
+.debug {
+  max-width: 960px; margin: 0 auto 1rem; padding: 0 1rem;
+  display: none;
+}
+.debug.show { display: block; }
+.debug-inner {
+  background: #0a0d14; border: 1px solid var(--brd); border-radius: 8px;
+  padding: 10px 14px; font-family: monospace; font-size: 11px;
+  max-height: 180px; overflow-y: auto; line-height: 1.7;
+  color: var(--mut);
+}
+.debug-inner .ok  { color: var(--grn); }
+.debug-inner .err { color: var(--red); }
+.debug-inner .info { color: var(--blu); }
+.debug-toggle {
+  font-size: .72rem; color: var(--mut); cursor: pointer;
+  text-decoration: underline; margin-bottom: 4px; display: inline-block;
+}
+
+/* ── RESULTS ── */
+main { max-width: 960px; margin: 0 auto; padding: 0 1rem 3rem; }
+
+/* no-results */
+.empty { text-align: center; color: var(--mut); padding: 3rem; font-size: .9rem; line-height: 2; }
+.empty code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: .85rem; color: var(--acc); }
+
+/* match card */
+.match-card {
+  background: var(--card); border: 1px solid var(--brd);
+  border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden;
+}
+.match-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1.2rem; gap: 1rem;
+  background: linear-gradient(90deg, #0f1520, #161b28, #0f1520);
+  border-bottom: 1px solid var(--brd);
+  flex-wrap: wrap;
+}
+.match-teams { display: flex; align-items: center; gap: .6rem; flex: 1; min-width: 0; }
+.match-teams.right { flex-direction: row-reverse; }
+.team-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: .03em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.score-block {
+  display: flex; align-items: center; gap: .5rem;
+  flex-shrink: 0;
+}
+.score {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 2rem; font-weight: 800; color: var(--mut);
+  min-width: 2.2ch; text-align: center;
+}
+.score.win { color: var(--acc); }
+.vs { color: var(--brd); font-family: 'Barlow Condensed', sans-serif; font-size: .8rem; font-weight: 700; letter-spacing: .1em; }
+
+/* tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--brd); overflow-x: auto; }
+.tab {
+  padding: .55rem 1rem; font-size: .78rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em;
+  cursor: pointer; color: var(--mut); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; white-space: nowrap; transition: color .15s;
+}
+.tab.active { color: var(--acc); border-bottom-color: var(--acc); }
+.tab:hover:not(.active) { color: var(--txt); }
+
+/* table */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+thead th {
+  background: #0c1220; color: var(--mut);
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .06em;
+  padding: .42rem .45rem; text-align: right;
+  border-bottom: 1px solid var(--brd); white-space: nowrap;
+}
+th.tl { text-align: left; }
+td {
+  padding: .4rem .45rem; text-align: right;
+  border-bottom: 1px solid #141920; color: var(--txt);
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,.025); }
+td.num { color: var(--mut); width: 2rem; }
+td.pname { text-align: left; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+td.mc { color: var(--blu); font-family: 'Barlow Condensed', sans-serif; font-weight: 600; }
+td.vc { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: .85rem; }
+td.vp { color: var(--grn); } td.vn { color: var(--red); } td.vz { color: var(--mut); }
+td.fg { color: var(--mut); font-size: .7rem; }
+.nodata { color: var(--mut); font-style: italic; padding: .8rem 1rem; font-size: .82rem; }
+
+/* download btn */
+.dl-wrap { text-align: right; padding: .7rem 1rem; border-top: 1px solid var(--brd); }
+.dl-btn {
+  background: transparent; border: 1px solid var(--brd); border-radius: 5px;
+  color: var(--mut); cursor: pointer; font-size: .75rem;
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
+  letter-spacing: .05em; text-transform: uppercase; padding: .3rem .8rem;
+  transition: border-color .2s, color .2s;
+}
+.dl-btn:hover { border-color: var(--acc); color: var(--acc); }
+
+footer {
+  text-align: center; color: var(--mut); font-size: .72rem;
+  padding: 1.5rem; border-top: 1px solid var(--brd);
+  letter-spacing: .04em;
+}
+a { color: var(--acc); text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ── SANDBOX WARNING ── -->
+<div id="sandboxWarn" style="display:none;background:#7c2d12;color:#fed7aa;padding:.7rem 1.2rem;text-align:center;font-size:.85rem;font-family:'Barlow',sans-serif;">
+  ⚠️ Stai aprendo questo file <strong>localmente o nell'anteprima di Claude</strong> — i proxy CORS non funzionano qui.<br>
+  Carica <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">index.html</code> nella cartella <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">docs/</code> del tuo repo e aprilo tramite <strong>GitHub Pages</strong>.
+</div>
+<script>
+  // Mostra avviso se siamo in localhost, file://, o iframe Claude
+  (function(){
+    const loc = window.location;
+    if(loc.protocol === 'file:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || window.self !== window.top) {
+      document.getElementById('sandboxWarn').style.display = 'block';
+    }
+  })();
+</script>
+
+
+<div class="hero">
+  <h1>LBA <span>Serie A</span></h1>
+  <p>Statistiche giocatori · boxscore per giornata</p>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label>Giornata</label>
+    <input type="number" id="gior" min="1" max="34" value="25"/>
+  </div>
+  <div class="field">
+    <label>Stagione</label>
+    <select id="seas">
+      <option value="2025-2026">2025-2026</option>
+      <option value="2024-2025" selected>2024-2025</option>
+      <option value="2023-2024">2023-2024</option>
+    </select>
+  </div>
+  <button class="btn" id="loadBtn" onclick="loadRound()">Carica</button>
+</div>
+
+<div class="status-bar" id="statusBar">
+  <div class="dot"></div>
+  <span id="statusMsg">Inserisci la giornata e premi Carica.</span>
+</div>
+
+<div class="debug" id="debugBox">
+  <span class="debug-toggle" onclick="toggleDebug()">nascondi log tecnico</span>
+  <div class="debug-inner" id="debugLog"></div>
+</div>
+
+<main id="results"></main>
+
+<footer>
+  Dati estratti da <a href="https://www.legabasket.it" target="_blank">legabasket.it</a>
+  · Progetto open source su GitHub
+</footer>
+
+<script>
+/* =========================================================
+   CONFIGURAZIONE PROXY
+   Se uno smette di funzionare, aggiungine altri qui.
+   Ordine: viene provato il primo, poi il secondo, ecc.
+   ========================================================= */
+const PROXIES = [
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
+
+const BASE = 'https://www.legabasket.it';
+
+/* ── State ── */
+let allMatches = [];
+let buildId    = null;
+let debugVisible = false;
+
+/* ── Helpers UI ── */
+function setStatus(msg, type = '') {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+function dlog(msg, cls = '') {
+  const box  = document.getElementById('debugBox');
+  const log  = document.getElementById('debugLog');
+  box.classList.add('show');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function toggleDebug() {
+  debugVisible = !debugVisible;
+  document.getElementById('debugLog').style.display = debugVisible ? '' : 'none';
+  document.querySelector('.debug-toggle').textContent = debugVisible ? 'nascondi log tecnico' : 'mostra log tecnico';
+}
+
+/* ── Proxy fetch ── */
+async function proxyFetch(url) {
+  for (let i = 0; i < PROXIES.length; i++) {
+    const pUrl = PROXIES[i](url);
+    dlog(`proxy ${i+1}: ${url.split('?')[0]}`);
+    try {
+      const r = await fetch(pUrl, {});
+      if (!r.ok) { dlog(`  → HTTP ${r.status}`, 'err'); continue; }
+      const j = await r.json();
+      /* allorigins restituisce { contents, status } */
+      const body = j.contents !== undefined ? j.contents : JSON.stringify(j);
+      if (!body || body.length < 50) { dlog('  → risposta vuota', 'err'); continue; }
+      dlog(`  → ok (${body.length} bytes)`, 'ok');
+      return body;
+    } catch(e) {
+      dlog(`  → ${e.message}`, 'err');
+    }
+  }
+  throw new Error('Tutti i proxy CORS non raggiungibili. Controlla la connessione.');
+}
+
+/* ── Estrai __NEXT_DATA__ ── */
+function extractNextData(html) {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (m) { try { return JSON.parse(m[1]); } catch(e) {} }
+  return null;
+}
+
+/* ── Estrai buildId di Next.js ── */
+async function getBuildId() {
+  if (buildId) return buildId;
+  try {
+    const html = await proxyFetch(BASE);
+    const nd   = extractNextData(html);
+    if (nd?.buildId) {
+      buildId = nd.buildId;
+      dlog(`buildId: ${buildId}`, 'ok');
+      return buildId;
+    }
+  } catch(e) {}
+  return null;
+}
+
+/* ── Fetch JSON via endpoint Next.js ── */
+async function fetchNextJson(path) {
+  const bid = await getBuildId();
+  if (!bid) return null;
+  const url = `${BASE}/_next/data/${bid}${path}.json`;
+  dlog(`next-json: ${url}`);
+  try {
+    const body = await proxyFetch(url);
+    return typeof body === 'string' ? JSON.parse(body) : body;
+  } catch(e) {
+    dlog(`  → fallito: ${e.message}`, 'err');
+    return null;
+  }
+}
+
+/* ── Cerca ricorsivamente in un oggetto ── */
+function deepSearch(obj, predicate, maxDepth = 8) {
+  if (maxDepth === 0 || !obj || typeof obj !== 'object') return null;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const r = deepSearch(item, predicate, maxDepth - 1);
+      if (r) return r;
+    }
+  } else {
+    if (predicate(obj)) return obj;
+    for (const val of Object.values(obj)) {
+      const r = deepSearch(val, predicate, maxDepth - 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+function deepCollect(obj, predicate, results = [], maxDepth = 8) {
+  if (maxDepth === 0 || !obj || typeof obj !== 'object') return results;
+  if (Array.isArray(obj)) {
+    for (const item of obj) deepCollect(item, predicate, results, maxDepth - 1);
+  } else {
+    if (predicate(obj)) results.push(obj);
+    else for (const val of Object.values(obj)) deepCollect(val, predicate, results, maxDepth - 1);
+  }
+  return results;
+}
+
+/* =========================================================
+   RECUPERO LISTA PARTITE
+   Strategie in ordine:
+   1. _next/data JSON per la pagina risultati
+   2. Fetch HTML calendario + parsing __NEXT_DATA__
+   3. Parsing link /game/ con contesto testuale del round
+   ========================================================= */
+async function getGames(giornata) {
+  setStatus('Cerco partite della giornata...', 'loading');
+
+  /* ── STRATEGIA 1: endpoint _next/data ── */
+  const ndPaths = [
+    '/competition/1/lba/results',
+    '/competition/1/lba/calendar',
+    '/competition/1/lba',
+  ];
+  for (const path of ndPaths) {
+    dlog(`strategia 1: _next/data${path}`);
+    const data = await fetchNextJson(path);
+    if (data) {
+      const games = extractGamesFromNextData(data, giornata);
+      if (games.length) { dlog(`trovate ${games.length} partite`, 'ok'); return games; }
+    }
+  }
+
+  /* ── STRATEGIA 2: fetch HTML + __NEXT_DATA__ ── */
+  const htmlPages = [
+    `${BASE}/competition/1/lba/results`,
+    `${BASE}/competition/1/lba/calendar`,
+  ];
+  for (const url of htmlPages) {
+    dlog(`strategia 2: HTML ${url}`);
+    try {
+      const html  = await proxyFetch(url);
+      const nd    = extractNextData(html);
+      if (nd) {
+        const games = extractGamesFromNextData(nd, giornata);
+        if (games.length) { dlog(`trovate ${games.length} partite`, 'ok'); return games; }
+      }
+      /* estrai link /game/ con contesto del round ── */
+      const games = extractGamesFromHtml(html, giornata);
+      if (games.length) { dlog(`trovate ${games.length} partite da HTML`, 'ok'); return games; }
+    } catch(e) {
+      dlog(`  → ${e.message}`, 'err');
+    }
+  }
+
+  return [];
+}
+
+function extractGamesFromNextData(nd, giornata) {
+  const games = [];
+
+  /* cerca oggetti con proprietà tipiche di una partita */
+  const isGame = obj =>
+    obj && typeof obj === 'object' &&
+    (obj.homeTeam || obj.home) &&
+    (obj.awayTeam || obj.away) &&
+    (obj.id || obj.gameId || obj.game_id);
+
+  /* cerca round container */
+  const isRound = obj =>
+    obj && typeof obj === 'object' &&
+    (obj.round === giornata || obj.roundNumber === giornata || obj.number === giornata) &&
+    (obj.games || obj.matches);
+
+  const roundNode = deepSearch(nd, isRound);
+  if (roundNode) {
+    const list = roundNode.games || roundNode.matches || [];
+    dlog(`round node trovato con ${list.length} partite`, 'ok');
+    return list.map(normGame).filter(g => g.game_id);
+  }
+
+  /* cerca flat list di game filtrata per round */
+  const allGames = deepCollect(nd, isGame);
+  if (allGames.length) {
+    dlog(`trovati ${allGames.length} game objects in totale`);
+    const filtered = allGames.filter(g =>
+      g.round === giornata || g.roundNumber === giornata || g.roundId === giornata
+    );
+    if (filtered.length) return filtered.map(normGame).filter(g => g.game_id);
+    /* se nessuno ha il campo round, proviamo a capire dalla data o restituiamo tutti */
+    dlog('nessuno ha campo round - non filtrabile', 'err');
+  }
+
+  return games;
+}
+
+function extractGamesFromHtml(html, giornata) {
+  /*
+    Il calendario HTML di legabasket.it ha struttura tipo:
+      <div>...25ª Giornata...</div>
+      <a href="/game/25212/...">...</a>
+      <a href="/game/25213/...">...</a>
+
+    Cerchiamo il testo del round e poi i link successivi.
+  */
+  const games = [];
+
+  /* Cerca sezioni di giornata nel testo */
+  const roundPatterns = [
+    new RegExp(`(${giornata}[°ªa]?\\s*giornata|giornata\\s*${giornata})[\\s\\S]{0,3000}`, 'i'),
+    new RegExp(`round[\\s"':]*${giornata}[\\s\\S]{0,3000}`, 'i'),
+  ];
+
+  let section = null;
+  for (const rx of roundPatterns) {
+    const m = html.match(rx);
+    if (m) { section = m[0]; break; }
+  }
+
+  const searchIn = section || html;
+  const linkRx   = /href="(\/game\/(\d+)\/[^"]+)"/g;
+  const seen      = new Set();
+  let   match;
+
+  while ((match = linkRx.exec(searchIn)) !== null) {
+    const [, href, gid] = match;
+    if (seen.has(gid)) continue;
+    seen.add(gid);
+
+    /* Prova a estrarre nomi squadre dallo slug URL */
+    const slug   = href.replace(`/game/${gid}/`, '');
+    const parts  = slug.split('-vs-');
+    const home   = parts[0] ? slugToName(parts[0]) : '?';
+    const away   = parts[1] ? slugToName(parts[1]) : '?';
+
+    games.push({ game_id: gid, home, away, score_home: '-', score_away: '-', url: BASE + href });
+  }
+
+  if (!section && games.length > 0) {
+    dlog(`trovati ${games.length} link /game/ senza contesto round - potrebbero non essere giornata ${giornata}`);
+  }
+
+  return games;
+}
+
+function slugToName(slug) {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').trim();
+}
+
+function normGame(g) {
+  const gid  = String(g.id || g.gameId || g.game_id || '');
+  let home   = g.homeTeam || g.home || {};
+  let away   = g.awayTeam || g.away || {};
+  if (typeof home === 'string') home = { name: home };
+  if (typeof away === 'string') away = { name: away };
+  const slug = [
+    (home.slug || home.name || '').toLowerCase().replace(/\s+/g, '-'),
+    (away.slug || away.name || '').toLowerCase().replace(/\s+/g, '-'),
+  ].join('-vs-');
+  return {
+    game_id:    gid,
+    home:       home.name || home.teamName || home.fullName || '?',
+    away:       away.name || away.teamName || away.fullName || '?',
+    score_home: g.homeScore ?? g.scoreHome ?? '-',
+    score_away: g.awayScore ?? g.scoreAway ?? '-',
+    url:        g.url || `${BASE}/game/${gid}/${slug}`,
+  };
+}
+
+/* =========================================================
+   RECUPERO BOXSCORE
+   Strategie:
+   1. _next/data JSON per la pagina partita
+   2. Fetch HTML partita + __NEXT_DATA__
+   ========================================================= */
+async function getBoxscore(game) {
+  const gid = game.game_id;
+
+  /* ── STRATEGIA 1: _next/data per la pagina partita ── */
+  /* dobbiamo costruire lo slug corretto */
+  const slugUrl = game.url.replace(BASE, '');
+  dlog(`boxscore: _next/data${slugUrl.replace(/\?.*/, '')}`);
+  const ndData = await fetchNextJson(slugUrl.replace(/\?.*/, ''));
+  if (ndData) {
+    const [hp, ap] = extractPlayersFromData(ndData);
+    if (hp.length || ap.length) {
+      dlog(`  → ${hp.length}+${ap.length} giocatori da _next/data`, 'ok');
+      return [hp, ap];
+    }
+  }
+
+  /* ── STRATEGIA 2: HTML + __NEXT_DATA__ ── */
+  dlog(`boxscore: HTML ${game.url}`);
+  try {
+    const html = await proxyFetch(game.url);
+    const nd   = extractNextData(html);
+    if (nd) {
+      const [hp, ap] = extractPlayersFromData(nd);
+      if (hp.length || ap.length) {
+        dlog(`  → ${hp.length}+${ap.length} giocatori da HTML __NEXT_DATA__`, 'ok');
+        return [hp, ap];
+      }
+    }
+    dlog('  → __NEXT_DATA__ senza statistiche giocatori', 'err');
+    dlog('  → il sito carica le stat via XHR separato (non accessibile via proxy HTML)', 'err');
+  } catch(e) {
+    dlog(`  → ${e.message}`, 'err');
+  }
+
+  return [[], []];
+}
+
+function extractPlayersFromData(data) {
+  const isPlayer = obj =>
+    obj && typeof obj === 'object' &&
+    (obj.minutes != null || obj.mins != null || obj.timePlayed != null) &&
+    (obj.name || obj.playerName || obj.lastName);
+
+  const isTeamWithPlayers = obj =>
+    obj && typeof obj === 'object' &&
+    Array.isArray(obj.players || obj.boxscore) &&
+    (obj.players || obj.boxscore).length > 0;
+
+  /* cerca home/away team con players */
+  const gameNode = deepSearch(data, obj =>
+    obj && typeof obj === 'object' &&
+    (obj.homeTeam || obj.home) &&
+    (obj.awayTeam || obj.away)
+  );
+
+  if (gameNode) {
+    let ht = gameNode.homeTeam || gameNode.home;
+    let at = gameNode.awayTeam || gameNode.away;
+    if (typeof ht === 'string') ht = {};
+    if (typeof at === 'string') at = {};
+    const hp = (ht.players || ht.boxscore || []).map(normPlayer).filter(Boolean);
+    const ap = (at.players || at.boxscore || []).map(normPlayer).filter(Boolean);
+    if (hp.length || ap.length) return [hp, ap];
+  }
+
+  /* cerca tutti gli oggetti player e separa per squadra */
+  const allPlayers = deepCollect(data, isPlayer);
+  if (allPlayers.length >= 2) {
+    const home = allPlayers.filter(p => ['home','H',1,'1',0,'0'].includes(p.teamSide ?? p.team ?? p.side ?? '__none__'));
+    const away = allPlayers.filter(p => ['away','A',2,'2'].includes(p.teamSide ?? p.team ?? p.side ?? '__none__'));
+    if (home.length && away.length) return [home.map(normPlayer), away.map(normPlayer)];
+    /* se non c'è discriminante, dividili a metà */
+    const half = Math.ceil(allPlayers.length / 2);
+    return [allPlayers.slice(0, half).map(normPlayer), allPlayers.slice(half).map(normPlayer)];
+  }
+
+  return [[], []];
+}
+
+function normPlayer(p) {
+  if (!p || typeof p !== 'object') return null;
+  const name = p.name || p.playerName ||
+    `${p.lastName || ''} ${p.firstName || ''}`.trim() || '–';
+  const fgm  = p.fieldGoalsMade  ?? p.fgm;
+  const fga  = p.fieldGoalsAttempted ?? p.fga;
+  const fg   = (fgm != null && fga != null) ? `${fgm}/${fga}` : (p.fg || '-');
+  return {
+    name,
+    number:  p.number  ?? p.jersey ?? p.shirtNumber ?? '#',
+    minutes: p.minutes ?? p.mins   ?? p.timePlayed  ?? p.min ?? '-',
+    rating:  p.rating  ?? p.valutazione ?? p.eval   ?? p.efficiency ?? '-',
+    pts:     p.points  ?? p.pts ?? '-',
+    reb:     p.totalRebounds ?? p.rebounds ?? p.reb ?? '-',
+    ast:     p.assists ?? p.ast ?? '-',
+    stl:     p.steals  ?? p.stl ?? '-',
+    blk:     p.blocks  ?? p.blk ?? '-',
+    to:      p.turnovers ?? p.to ?? '-',
+    fg,
+  };
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function valCls(v) {
+  const n = parseFloat(String(v).replace(',', '.'));
+  if (isNaN(n)) return 'vz';
+  return n > 0 ? 'vp' : n < 0 ? 'vn' : 'vz';
+}
+
+function renderTable(players) {
+  if (!players.length)
+    return '<div class="nodata">Statistiche non disponibili — il sito LBA potrebbe caricarle via XHR dopo il render (non intercettabile via proxy HTML). Riprova o controlla il log tecnico.</div>';
+
+  const rows = players.map(p => `
+    <tr>
+      <td class="num">${p.number}</td>
+      <td class="pname">${p.name}</td>
+      <td class="mc">${p.minutes}</td>
+      <td class="vc ${valCls(p.rating)}">${p.rating}</td>
+      <td>${p.pts}</td><td>${p.reb}</td><td>${p.ast}</td>
+      <td>${p.stl}</td><td>${p.blk}</td><td>${p.to}</td>
+      <td class="fg">${p.fg}</td>
+    </tr>`).join('');
+
+  return `<div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>#</th><th class="tl">Giocatore</th>
+      <th title="Minuti">MIN</th><th title="Valutazione">VAL</th>
+      <th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>TT</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function renderMatches(matches) {
+  return matches.map((m, i) => {
+    const sh   = m.score_home !== '-' ? m.score_home : '–';
+    const sa   = m.score_away !== '-' ? m.score_away : '–';
+    let   wh   = '', wa = '';
+    try { if (+sh > +sa) wh = 'win'; else if (+sa > +sh) wa = 'win'; } catch(e) {}
+
+    return `
+    <div class="match-card">
+      <div class="match-head">
+        <div class="match-teams">
+          <span class="team-name">${m.home}</span>
+        </div>
+        <div class="score-block">
+          <span class="score ${wh}">${sh}</span>
+          <span class="vs">–</span>
+          <span class="score ${wa}">${sa}</span>
+        </div>
+        <div class="match-teams right">
+          <span class="team-name">${m.away}</span>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab(${i},'h',this)">${m.home}</div>
+        <div class="tab"        onclick="switchTab(${i},'a',this)">${m.away}</div>
+      </div>
+      <div id="tp-${i}-h">${renderTable(m.home_players)}</div>
+      <div id="tp-${i}-a" style="display:none">${renderTable(m.away_players)}</div>
+      <div class="dl-wrap">
+        <a class="dl-btn" href="${m.url}" target="_blank">Apri su legabasket.it ↗</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(i, side, el) {
+  el.closest('.match-card').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`tp-${i}-h`).style.display = side === 'h' ? '' : 'none';
+  document.getElementById(`tp-${i}-a`).style.display = side === 'a' ? '' : 'none';
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+async function loadRound() {
+  const giornata = parseInt(document.getElementById('gior').value);
+  if (!giornata || giornata < 1) { setStatus('Inserisci un numero valido.', 'err'); return; }
+
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('debugLog').innerHTML = '';
+  document.getElementById('debugBox').classList.remove('show');
+  document.getElementById('loadBtn').disabled = true;
+  allMatches = [];
+  buildId    = null;
+
+  try {
+    /* 1. lista partite */
+    const games = await getGames(giornata);
+
+    if (!games.length) {
+      setStatus('Nessuna partita trovata. Vedi il log tecnico per dettagli.', 'err');
+      document.getElementById('results').innerHTML =
+        `<div class="empty">
+          Partite non trovate per la giornata <code>${giornata}</code>.<br>
+          Possibili cause:<br>
+          • La giornata non esiste ancora (non ancora giocata)<br>
+          • I proxy CORS sono momentaneamente offline<br>
+          • Il sito LBA ha cambiato struttura<br><br>
+          Controlla il <span onclick="document.getElementById('debugBox').classList.toggle('show');document.getElementById('debugLog').style.display=''" style="cursor:pointer;text-decoration:underline;color:var(--acc)">log tecnico</span> per dettagli.
+        </div>`;
+      document.getElementById('loadBtn').disabled = false;
+      return;
+    }
+
+    setStatus(`${games.length} partite trovate — scarico statistiche...`, 'loading');
+
+    /* 2. boxscore */
+    const matches = [];
+    for (let i = 0; i < games.length; i++) {
+      const g = games[i];
+      setStatus(`Giocatori ${i+1}/${games.length}: ${g.home} vs ${g.away}...`, 'loading');
+      const [hp, ap] = await getBoxscore(g);
+      matches.push({ ...g, home_players: hp, away_players: ap });
+      /* piccola pausa per non sovraccaricare il proxy */
+      if (i < games.length - 1) await new Promise(r => setTimeout(r, 600));
+    }
+
+    allMatches = matches;
+    document.getElementById('results').innerHTML = renderMatches(matches);
+    setStatus(`Giornata ${giornata} caricata — ${matches.length} partite.`, 'ok');
+
+  } catch(e) {
+    setStatus('Errore: ' + e.message, 'err');
+    dlog(e.message, 'err');
+  }
+
+  document.getElementById('loadBtn').disabled = false;
+}
+
+/* Enter key */
+document.addEventListener('keydown', e => { if (e.key === 'Enter') loadRound(); });
+</script>
+</body>
+</html>
